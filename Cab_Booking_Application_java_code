@@ -1,0 +1,195 @@
+import java.io.*;
+import java.util.*;
+
+public class CabBookingApp {
+    static Scanner sc = new Scanner(System.in);
+    static final String FILE_NAME = "bookings.txt"; // file stored in project folder
+    static Map<String, Double> cabFares = new LinkedHashMap<>();
+
+    static {
+        cabFares.put("Compact", 12.0);
+        cabFares.put("Premium", 25.0);
+        cabFares.put("Minivan", 18.0);
+    }
+
+    static class Booking {
+        String name, cabType, pickup, drop;
+        double fare;
+
+        Booking(String name, String cabType, String pickup, String drop, double fare) {
+            this.name = name;
+            this.cabType = cabType;
+            this.pickup = pickup;
+            this.drop = drop;
+            this.fare = fare;
+        }
+
+        @Override
+        public String toString() {
+            return name + "," + cabType + "," + pickup + "," + drop + "," + fare;
+        }
+
+        static Booking fromString(String line) {
+            String[] parts = line.split(",");
+            return new Booking(parts[0], parts[1], parts[2], parts[3], Double.parseDouble(parts[4]));
+        }
+    }
+
+    static void viewCabs() {
+        System.out.println("\n--- Available Cabs ---");
+        for (String cab : cabFares.keySet()) {
+            System.out.println("Cab: " + cab + ", Fare per km: $" + cabFares.get(cab));
+        }
+    }
+
+    static void bookCab() {
+        try {
+            File file = new File(FILE_NAME);
+            if (!file.exists()) file.createNewFile();
+
+            System.out.print("Enter your name: ");
+            String name = sc.nextLine();
+
+            viewCabs();
+            System.out.print("Select cab type: ");
+            String cabType = sc.nextLine();
+            if (!cabFares.containsKey(cabType)) {
+                System.out.println("Invalid cab type!");
+                return;
+            }
+
+            System.out.print("Enter pickup location: ");
+            String pickup = sc.nextLine();
+            System.out.print("Enter drop location: ");
+            String drop = sc.nextLine();
+            System.out.print("Enter distance in km: ");
+            double distance = sc.nextDouble();
+            sc.nextLine(); // consume newline
+
+            double fare = distance * cabFares.get(cabType);
+            Booking booking = new Booking(name, cabType, pickup, drop, fare);
+
+            try (PrintWriter pw = new PrintWriter(new FileWriter(file, true))) {
+                pw.println(booking.toString());
+            }
+
+            System.out.println("Booking successful! Fare: $" + fare);
+        } catch (IOException e) {
+            System.out.println("Error saving booking: " + e.getMessage());
+        }
+    }
+
+    static void viewBookings() {
+        File file = new File(FILE_NAME);
+        if (!file.exists()) {
+            System.out.println("No bookings found.");
+            return;
+        }
+
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            boolean hasBooking = false;
+            System.out.println("\n--- Booking History ---");
+            while ((line = br.readLine()) != null) {
+                Booking b = Booking.fromString(line);
+                System.out.println("Name: " + b.name + ", Cab: " + b.cabType +
+                        ", Pickup: " + b.pickup + ", Drop: " + b.drop + ", Fare: $" + b.fare);
+                hasBooking = true;
+            }
+            if (!hasBooking) System.out.println("No bookings found.");
+        } catch (IOException e) {
+            System.out.println("Error reading bookings: " + e.getMessage());
+        }
+    }
+
+    static void cancelBooking() {
+        File file = new File(FILE_NAME);
+        if (!file.exists()) {
+            System.out.println("No bookings found.");
+            return;
+        }
+
+        System.out.print("Enter your name to cancel booking: ");
+        String name = sc.nextLine();
+
+        File tempFile = new File("temp.txt");
+        boolean found = false;
+
+        try (BufferedReader br = new BufferedReader(new FileReader(file));
+             PrintWriter pw = new PrintWriter(new FileWriter(tempFile))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                Booking b = Booking.fromString(line);
+                if (!b.name.equalsIgnoreCase(name)) {
+                    pw.println(line);
+                } else {
+                    found = true;
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Error processing bookings: " + e.getMessage());
+            return;
+        }
+
+        if (file.delete() && tempFile.renameTo(file)) {
+            if (found) System.out.println("Booking cancelled successfully.");
+            else System.out.println("No booking found with that name.");
+        } else {
+            System.out.println("Error updating bookings file.");
+        }
+    }
+
+    static void checkTripDetails() {
+        File file = new File(FILE_NAME);
+        if (!file.exists()) {
+            System.out.println("No bookings found.");
+            return;
+        }
+
+        System.out.print("Enter your name to check trip details: ");
+        String name = sc.nextLine();
+        boolean found = false;
+
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                Booking b = Booking.fromString(line);
+                if (b.name.equalsIgnoreCase(name)) {
+                    System.out.println("Name: " + b.name + ", Cab: " + b.cabType +
+                            ", Pickup: " + b.pickup + ", Drop: " + b.drop + ", Fare: $" + b.fare);
+                    found = true;
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Error reading file: " + e.getMessage());
+        }
+
+        if (!found) System.out.println("No booking found for " + name);
+    }
+
+    public static void main(String[] args) {
+        int choice;
+        do {
+            System.out.println("\n--- Cab Booking System ---");
+            System.out.println("1. View Available Cabs");
+            System.out.println("2. Book a Cab");
+            System.out.println("3. Cancel a Booking");
+            System.out.println("4. View Booking History");
+            System.out.println("5. Check Trip Details");
+            System.out.println("6. Exit");
+            System.out.print("Enter your choice: ");
+            choice = sc.nextInt();
+            sc.nextLine(); // consume newline
+
+            switch (choice) {
+                case 1 -> viewCabs();
+                case 2 -> bookCab();
+                case 3 -> cancelBooking();
+                case 4 -> viewBookings();
+                case 5 -> checkTripDetails();
+                case 6 -> System.out.println("Exiting...");
+                default -> System.out.println("Invalid choice!");
+            }
+        } while (choice != 6);
+    }
+}
